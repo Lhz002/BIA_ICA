@@ -7,7 +7,7 @@
 
 ## Result Demo
 
-### Yolo Result
+### Yolo Result (if gif fail to load, you can see in the doc file)
 
 
 
@@ -16,13 +16,13 @@
 
 
 
-### Tracing Result
+### Tracing Result (if gif fail to load, you can see in the doc file)
 
 
 
 ![Tracing_demo_in_docs_file](doc/tracing_demo.gif)
 
-### Extremely Test
+### Extremely Test (if gif fail to load, you can see in the doc file)
 
 ![Extremely _test_demo_in_docs_file](doc/extremely_test.gif)
 
