@@ -11,9 +11,8 @@
 
 
 
-<video width="600" controls>
-  <source src="./doc/yolo_demo.mp4" type="video/mp4">
-</video>
+![Yolo_result_in_doc_file](doc/yolo_demo.gif)
+
 
 
 
@@ -21,11 +20,11 @@
 
 
 
-<video width="600" controls>  <source src="./doc/tracing_demo.mp4" type="video/mp4"></video>
+![Tracing_demo_in_docs_file](doc/tracing_demo.gif)
 
 ### Extremely Test
 
-<video width="600" controls>  <source src="./doc/extremely_test.mp4" type="video/mp4"></video>
+![Extremely _test_demo_in_docs_file](doc/extremely_test.gif)
 
 ## Abstract
 
