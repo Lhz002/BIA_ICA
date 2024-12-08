@@ -26,6 +26,10 @@
 
 ![Extremely _test_demo_in_docs_file](doc/extremely_test.gif)
 
+### Wrong Video Detection
+
+![Wrong_detection](doc/wrong_detection.png)
+
 ## Abstract
 
 YOLOv8 is a target detection algorithm based on Convolutional Neural Networks (CNNs). Its main innovation
@@ -47,6 +51,8 @@ Cellpose uses deep CNNs for image segmentation,training on large-scale cell imag
 
 Our software integrates YOLO’s detection boxes with Cellpose's appearance features, using the ByteTrack algorithm
 for tracking. This combination enables real-time cell tracking
+
+
 
 ## Installtation
 ### 1. Installing on the host machine
@@ -124,7 +130,7 @@ Our main functions are in **"start_tracing.py"** and **"start_window.py"**. Afte
 
 ![GUI-2](doc/GUI-2.png)
 
-You can change the pretrained models in file path: BIA_ICA\yolov8-42\runs\detect\\You can change the pretrained models by modifying the file path: **BIA_ICA\yolov8-42\runs\detect\{train_round_number}**. This folder contains two model weight files: **best.pt** (best performance) and **last.pt** (last performance). On the video detection page, upload your test video from the path **BIA_ICA\cell_data\video\test**.{train_round_number}. In this file, it has two model weight file, best.pt and last.pt, means the best performance and the last performance. In the video detection page, you can up load the test video in path BIA_ICA\cell_data\video\test.
+You can change the pretrained models in file path: BIA_ICA\yolov8-42\runs\detect\\You can change the pretrained models by modifying the file path: **BIA_ICA\yolov8-42\runs\detect\{train_round_number}**. This folder contains two model weight files: **best.pt** (best performance) and **last.pt** (last performance). On the video detection page, upload your test video from the path **BIA_ICA\cell_data\video\test**.\\{train_round_number}. In this file, it has two model weight file, best.pt and last.pt, means the best performance and the last performance. In the video detection page, you can up load the test video in path BIA_ICA\cell_data\video\test.
 
 ![video](doc\video_detection.png)
 

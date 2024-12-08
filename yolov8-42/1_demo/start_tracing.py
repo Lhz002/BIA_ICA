@@ -29,6 +29,7 @@ from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
+    QMessageBox,  # 新增导入
 )
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import pyqtSignal, QObject
@@ -119,6 +120,7 @@ def register_tracker(model: object, persist: bool) -> None:
 class DetectionSignals(QObject):
     update_image = pyqtSignal(str)
     update_info = pyqtSignal(str)
+    no_cell_detected = pyqtSignal()  # 新增信号
 
 
 class DetectionClass:
@@ -135,6 +137,8 @@ class DetectionClass:
         self.trackers = []
         self.vid_path = []
         self.signals = signals  # Signal object for communication with the main thread
+        self.frame_count = 0  # 新增
+        self.cells_detected = False  # 新增
         # Initialize tracker
         self.initialize_tracker()
         # Load model
@@ -172,12 +176,31 @@ class DetectionClass:
                 # Read a frame from the video
                 success, frame = self.cap.read()
                 if success:
+                    self.frame_count +=1  # 新增
+
                     # Run YOLOv8 inference on the frame
                     results = self.model(frame)
                     result = results[0]
 
                     # Get detection results
                     det = result.boxes.cpu().numpy()
+
+                    if self.frame_count <=3:
+                        if len(det) >0:
+                            self.cells_detected = True
+
+                    if self.frame_count ==3:
+                        if not self.cells_detected:
+                            # 未检测到细胞，发射信号
+                            if self.signals:
+                                self.signals.no_cell_detected.emit()
+                            # 停止检测
+                            break
+
+                    if self.frame_count >3 and len(det) ==0:
+                        # 继续处理下一帧
+                        pass
+
                     if len(det) > 0:
                         # Extract detection boxes (x1, y1, x2, y2, confidence, class)
                         boxes = det[:, :6]
@@ -208,54 +231,63 @@ class DetectionClass:
                                 2,
                             )
 
-                    # Only visualize tracking results and save the resulting image
-                    im_record = copy.deepcopy(frame)
-                    resize_scale = self.output_size / frame.shape[0]
-                    im0 = cv2.resize(frame, (0, 0), fx=resize_scale, fy=resize_scale)
-                    cv2.imwrite("images/tmp/single_result_vid.jpg", im0)
+                        # Only visualize tracking results and save the resulting image
+                        im_record = copy.deepcopy(frame)
+                        resize_scale = self.output_size / frame.shape[0]
+                        im0 = cv2.resize(frame, (0, 0), fx=resize_scale, fy=resize_scale)
+                        cv2.imwrite("images/tmp/single_result_vid.jpg", im0)
 
-                    if self.signals:
-                        # Emit signal to update UI image
-                        self.signals.update_image.emit(
-                            "images/tmp/single_result_vid.jpg"
-                        )
+                        if self.signals:
+                            # Emit signal to update UI image
+                            self.signals.update_image.emit(
+                                "images/tmp/single_result_vid.jpg"
+                            )
 
-                    time_re = str(time.strftime("result_%Y-%m-%d_%H-%M-%S_%A"))
-                    if vid_i % self.vid_gap == 0:
-                        cv2.imwrite(f"record/vid/{time_re}.jpg", im_record)
+                        time_re = str(time.strftime("result_%Y-%m-%d_%H-%M-%S_%A"))
+                        if vid_i % self.vid_gap == 0:
+                            cv2.imwrite(f"record/vid/{time_re}.jpg", im_record)
 
-                    # Count the number of each category and display
-                    result_names = result.names
-                    result_nums = [0 for _ in range(len(result_names))]
-                    cls_ids = list(result.boxes.cls.cpu().numpy())
-                    for cls_id in cls_ids:
-                        result_nums[int(cls_id)] += 1
-                    result_info = ""
-                    for idx_cls, cls_num in enumerate(result_nums):
-                        if cls_num > 0:
-                            result_info += f"{result_names[idx_cls]}: {cls_num}\n"
-                    if self.signals:
-                        self.signals.update_info.emit(
-                            f"Detection Results:\n{result_info}"
-                        )
-                    vid_i += 1
+                        # Count the number of each category and display
+                        result_names = result.names
+                        result_nums = [0 for _ in range(len(result_names))]
+                        cls_ids = list(result.boxes.cls.cpu().numpy())
+                        for cls_id in cls_ids:
+                            result_nums[int(cls_id)] += 1
+                        result_info = ""
+                        for idx_cls, cls_num in enumerate(result_nums):
+                            if cls_num > 0:
+                                result_info += f"{result_names[idx_cls]}: {cls_num}\n"
+                        if self.signals:
+                            self.signals.update_info.emit(
+                                f"Detection Results:\n{result_info}"
+                            )
+                        vid_i += 1
+                    else:
+                        # No detection in frame beyond first ten frames
+                        pass
+
+                    # Check if need to stop
+                    if cv2.waitKey(1) & 0xFF == ord("q") or self.stopEvent.is_set():
+                        # Close and release video resources
+                        self.stopEvent.clear()
+                        if self.cap is not None:
+                            self.cap.release()
+                            cv2.destroyAllWindows()
+                        self.reset_vid()
+                        break
+
                 else:
                     # Video ended
-                    break
-
-                # Check if need to stop
-                if cv2.waitKey(1) & 0xFF == ord("q") or self.stopEvent.is_set():
-                    # Close and release video resources
-                    self.stopEvent.clear()
-                    if self.cap is not None:
-                        self.cap.release()
-                        cv2.destroyAllWindows()
-                    self.reset_vid()
                     break
 
             except Exception as e:
                 print(f"Error in detection thread: {e}")
                 break
+
+        # After loop ends, check if frames were less than 10 and no cells detected
+        if self.frame_count <10 and not self.cells_detected:
+            if self.signals:
+                self.signals.no_cell_detected.emit()
 
         # Release resources after video processing ends
         if self.cap is not None:
@@ -355,9 +387,13 @@ class MainWindow(QMainWindow):
         self.signals = DetectionSignals()
         self.signals.update_image.connect(self.update_image)
         self.signals.update_info.connect(self.update_info)
+        self.signals.no_cell_detected.connect(self.show_no_cell_detected)  # 连接新信号
 
         self.selected_model_path = None  # Store selected model path
         self.selected_tracker_path = None  # Store selected tracker config path
+
+        # 新增标志位
+        self.no_cell_popup_shown = False
 
     def select_model(self):
         """Select a model file"""
@@ -399,6 +435,13 @@ class MainWindow(QMainWindow):
         """Update detection info via signal"""
         self.vid_num_label.setText(info)
 
+    def show_no_cell_detected(self):
+        """显示未检测到细胞的警告弹窗，并停止检测"""
+        if not self.no_cell_popup_shown:
+            QMessageBox.warning(self, "No Cell Detected", "No cell detected, Please check the video")
+            self.no_cell_popup_shown = True
+            self.stop_detection()
+
     def open_cam(self):
         """Open camera for detection"""
         if not self.selected_model_path:
@@ -416,7 +459,11 @@ class MainWindow(QMainWindow):
         self.mp4_detection_btn.setEnabled(False)  # Disable to prevent multiple triggers
         self.vid_stop_btn.setEnabled(True)  # Enable stop button
 
-        self.vid_source = int(self.init_vid_id)  # Initialize camera
+        try:
+            self.vid_source = int(self.init_vid_id)  # Initialize camera
+        except ValueError:
+            self.vid_source = 0  # Default to camera 0 if conversion fails
+
         self.cap = cv2.VideoCapture(self.vid_source)  # Initialize video capture object
 
         # Instantiate DetectionClass
@@ -488,6 +535,7 @@ class MainWindow(QMainWindow):
         self.model_label.setText("No model selected")
         self.tracker_label.setText("No tracker selected")
         self.vid_num_label.setText("Detection stopped.")
+        self.no_cell_popup_shown = False  # 重置标志位
 
     def reset_vid(self):
         """Reset video-related parameters or state"""
